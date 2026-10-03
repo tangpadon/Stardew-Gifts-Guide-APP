@@ -22,9 +22,15 @@ public class NPCTaste {
 
         // SVE NPCs have a different structure: {{i18n:...}}/ID ID ID
         // Vanilla NPCs have: ID ID ID (Indices are different if we split by /)
-        
         int loveIndex = 1;
         int likeIndex = 3;
+
+        // Check for edge cases where the first part is empty (starts with /)
+        if (rawDataFromJSON.startsWith("/")) {
+            loveIndex = 1;
+            likeIndex = 3;
+        }
+
 
         // Append Love IDs
         if (parts.length > loveIndex) {

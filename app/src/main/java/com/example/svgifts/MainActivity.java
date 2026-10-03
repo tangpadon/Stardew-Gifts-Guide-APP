@@ -419,22 +419,36 @@ public class MainActivity extends AppCompatActivity {
         StardewItem item = getItemById(id);
         if (item != null) return item.getName();
 
-        // Handle common Stardew categories
+        // Handle common Stardew categories and special tags
         switch (id) {
             case "-2": return "Artisan Goods";
-            case "-7": return "Cooking";
-            case "-26": return "Resources";
-            case "-75": return "Vegetables";
-            case "-80": return "Flowers";
             case "-4": return "Fish";
             case "-5": return "Eggs";
             case "-6": return "Milk";
+            case "-7": return "Cooking";
             case "-8": return "Artifacts";
             case "-12": return "Minerals";
             case "-15": return "Metal Ores";
             case "-16": return "Building Resources";
+            case "-19": return "Fertilizers";
             case "-20": return "Trash";
+            case "-24": return "Furniture";
+            case "-26": return "Resources";
+            case "-27": return "Tackle";
             case "-28": return "Monster Loot";
+            case "-74": return "Seeds";
+            case "-75": return "Vegetables";
+            case "-79": return "Fruits";
+            case "-80": return "Flowers";
+            case "-81": return "Foraging";
+            case "book_item": return "Books";
+            case "category_trinket": return "Trinkets";
+            case "edible_mushroom": return "Mushrooms";
+            case "forage_item_beach": return "Beach Forage";
+            case "ancient_item": return "Ancient Items";
+            case "doll_item": return "Dolls";
+            case "toy_item": return "Toys";
+            case "archaeological_item": return "Artifacts";
             default: return id;
         }
     }

@@ -32,6 +32,7 @@ android {
 }
 
 dependencies {
+    implementation(libs.corektx)
     implementation(libs.appcompat)
     implementation(libs.material)
     implementation(libs.activity)
