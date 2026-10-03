@@ -31,10 +31,12 @@ public class MainActivity extends AppCompatActivity {
     private final List<NPCTaste> allNPCs = new ArrayList<>();
     private final List<String> universalLoves = new ArrayList<>();
     private final List<String> universalLikes = new ArrayList<>();
-    private final List<String> springItemNames = new ArrayList<>();
-    private final List<String> summerItemNames = new ArrayList<>();
-    private final List<String> fallItemNames = new ArrayList<>();
-    private final List<String> winterItemNames = new ArrayList<>();
+    
+    // Use Set for faster lookup O(1)
+    private final java.util.Set<String> springIds = new java.util.HashSet<>();
+    private final java.util.Set<String> summerIds = new java.util.HashSet<>();
+    private final java.util.Set<String> fallIds = new java.util.HashSet<>();
+    private final java.util.Set<String> winterIds = new java.util.HashSet<>();
     AutoCompleteTextView autoCompleteSearch;
     TextView txtLoveResults, txtLikeResults;
     ImageView imgDisplay;
@@ -198,49 +200,46 @@ public class MainActivity extends AppCompatActivity {
 
         // Sort itemIds by their actual names A-Z
         itemIds.sort((id1, id2) -> {
-            StardewItem item1 = getItemById(id1);
-            StardewItem item2 = getItemById(id2);
-            String name1 = (item1 != null) ? item1.getName() : id1;
-            String name2 = (item2 != null) ? item2.getName() : id2;
+            String name1 = getDisplayName(id1);
+            String name2 = getDisplayName(id2);
             return name1.compareToIgnoreCase(name2);
         });
 
-        List<String> springIds = new ArrayList<>();
-        List<String> summerIds = new ArrayList<>();
-        List<String> fallIds = new ArrayList<>();
-        List<String> winterIds = new ArrayList<>();
+        List<String> tempSpring = new ArrayList<>();
+        List<String> tempSummer = new ArrayList<>();
+        List<String> tempFall = new ArrayList<>();
+        List<String> tempWinter = new ArrayList<>();
         List<String> otherIds = new ArrayList<>();
 
         for (String id : itemIds) {
             StardewItem item = getItemById(id);
             if (item != null) {
-                String name = item.getName();
                 String cleanId = item.getCleanId();
                 String rawId = item.getId();
                 
-                boolean inSpring = springItemNames.contains(name) || springItemNames.contains(cleanId) || springItemNames.contains(rawId);
-                boolean inSummer = summerItemNames.contains(name) || summerItemNames.contains(cleanId) || summerItemNames.contains(rawId);
-                boolean inFall = fallItemNames.contains(name) || fallItemNames.contains(cleanId) || fallItemNames.contains(rawId);
-                boolean inWinter = winterItemNames.contains(name) || winterItemNames.contains(cleanId) || winterItemNames.contains(rawId);
+                boolean inSpring = this.springIds.contains(rawId) || this.springIds.contains(cleanId);
+                boolean inSummer = this.summerIds.contains(rawId) || this.summerIds.contains(cleanId);
+                boolean inFall = this.fallIds.contains(rawId) || this.fallIds.contains(cleanId);
+                boolean inWinter = this.winterIds.contains(rawId) || this.winterIds.contains(cleanId);
 
                 if (inSpring && inSummer && inFall && inWinter) {
                     otherIds.add(id);
                 } else {
                     boolean categorized = false;
                     if (inSpring) {
-                        springIds.add(id);
+                        tempSpring.add(id);
                         categorized = true;
                     }
                     if (inSummer) {
-                        summerIds.add(id);
+                        tempSummer.add(id);
                         categorized = true;
                     }
                     if (inFall) {
-                        fallIds.add(id);
+                        tempFall.add(id);
                         categorized = true;
                     }
                     if (inWinter) {
-                        winterIds.add(id);
+                        tempWinter.add(id);
                         categorized = true;
                     }
 
@@ -248,32 +247,35 @@ public class MainActivity extends AppCompatActivity {
                         otherIds.add(id);
                     }
                 }
+            } else {
+                // Category IDs or missing items go to Other
+                otherIds.add(id);
             }
         }
 
         SpannableStringBuilder ssb = new SpannableStringBuilder();
         
         // Spring Section
-        if (!springIds.isEmpty()) {
-            appendSeasonalSection(ssb, "Spring Available:", 0xFFE91E63, springIds);
+        if (!tempSpring.isEmpty()) {
+            appendSeasonalSection(ssb, "Spring Available:", 0xFFE91E63, tempSpring);
         }
 
         // Summer Section
-        if (!summerIds.isEmpty()) {
+        if (!tempSummer.isEmpty()) {
             if (ssb.length() > 0) ssb.append("\n\n");
-            appendSeasonalSection(ssb, "Summer Available:", 0xFFFF9800, summerIds);
+            appendSeasonalSection(ssb, "Summer Available:", 0xFFFF9800, tempSummer);
         }
 
         // Fall Section
-        if (!fallIds.isEmpty()) {
+        if (!tempFall.isEmpty()) {
             if (ssb.length() > 0) ssb.append("\n\n");
-            appendSeasonalSection(ssb, "Fall Available:", 0xFF795548, fallIds);
+            appendSeasonalSection(ssb, "Fall Available:", 0xFF795548, tempFall);
         }
 
         // Winter Section
-        if (!winterIds.isEmpty()) {
+        if (!tempWinter.isEmpty()) {
             if (ssb.length() > 0) ssb.append("\n\n");
-            appendSeasonalSection(ssb, "Winter Available:", 0xFF2196F3, winterIds);
+            appendSeasonalSection(ssb, "Winter Available:", 0xFF2196F3, tempWinter);
         }
 
         // Other Section
@@ -304,20 +306,23 @@ public class MainActivity extends AppCompatActivity {
         for (int i = 0; i < itemIds.size(); i++) {
             String id = itemIds.get(i);
             StardewItem item = getItemById(id);
-            if (item == null) continue;
 
             int start = ssb.length();
-            ssb.append(" "); // Placeholder for icon
-            Drawable d = getItemDrawable(item);
-            if (d != null) {
-                d.setBounds(0, 0, size, size);
-                ssb.setSpan(new ImageSpan(d, ImageSpan.ALIGN_BASELINE), start, start + 1, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+            if (item != null) {
+                ssb.append(" "); // Placeholder for icon
+                Drawable d = getItemDrawable(item);
+                if (d != null) {
+                    d.setBounds(0, 0, size, size);
+                    ssb.setSpan(new ImageSpan(d, ImageSpan.ALIGN_BASELINE), start, start + 1, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                }
+                ssb.append("\u00A0"); // Non-breaking space
+                ssb.append(item.getName());
+            } else {
+                ssb.append(getDisplayName(id));
             }
-            ssb.append("\u00A0"); // Non-breaking space to glue icon to text
-            ssb.append(item.getName());
 
             if (i < itemIds.size() - 1) {
-                ssb.append("\t"); // Normal spaces here to allow wrap between items
+                ssb.append("\t");
             }
         }
         return ssb;
@@ -352,23 +357,20 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private Drawable getPortraitDrawable(String npcName) {
-        try {
-            InputStream is = getAssets().open("portraits/" + npcName + ".png");
+        try (InputStream is = getAssets().open("portraits/" + npcName + ".png")) {
             Bitmap bitmap = BitmapFactory.decodeStream(is);
-            is.close();
-
             if (bitmap != null && bitmap.getWidth() >= 64 && bitmap.getHeight() >= 64) {
-                // Crop the first 64x64 frame for the small icons in the list too
                 bitmap = Bitmap.createBitmap(bitmap, 0, 0, 64, 64);
                 return new BitmapDrawable(getResources(), bitmap);
             }
-            return new BitmapDrawable(getResources(), bitmap);
+            return (bitmap != null) ? new BitmapDrawable(getResources(), bitmap) : null;
         } catch (IOException e) {
             return null;
         }
     }
 
     private Drawable getItemDrawable(StardewItem item) {
+        if (item == null) return null;
         if (item.getImageBase64() != null && !item.getImageBase64().isEmpty()) {
             try {
                 byte[] decodedString = android.util.Base64.decode(item.getImageBase64(), android.util.Base64.DEFAULT);
@@ -413,9 +415,28 @@ public class MainActivity extends AppCompatActivity {
         return null;
     }
 
-    private String getItemNameById(String id) {
+    private String getDisplayName(String id) {
         StardewItem item = getItemById(id);
-        return (item != null) ? item.getName() : null;
+        if (item != null) return item.getName();
+
+        // Handle common Stardew categories
+        switch (id) {
+            case "-2": return "Artisan Goods";
+            case "-7": return "Cooking";
+            case "-26": return "Resources";
+            case "-75": return "Vegetables";
+            case "-80": return "Flowers";
+            case "-4": return "Fish";
+            case "-5": return "Eggs";
+            case "-6": return "Milk";
+            case "-8": return "Artifacts";
+            case "-12": return "Minerals";
+            case "-15": return "Metal Ores";
+            case "-16": return "Building Resources";
+            case "-20": return "Trash";
+            case "-28": return "Monster Loot";
+            default: return id;
+        }
     }
 
     private void updateUIResults(String itemId, String itemName) {
@@ -470,37 +491,13 @@ public class MainActivity extends AppCompatActivity {
                 likers.add(npc.getNpcName());
             }
         }
+        
+        // Remove duplicates in case they were added multiple times (e.g. Universal + Specific)
+        List<String> uniqueLovers = new ArrayList<>(new java.util.LinkedHashSet<>(lovers));
+        List<String> uniqueLikers = new ArrayList<>(new java.util.LinkedHashSet<>(likers));
 
-        txtLoveResults.setText(formatNpcList(lovers));
-        txtLikeResults.setText(formatNpcList(likers));
-    }
-    private void testSearch(String itemId, String itemName) {
-        Log.d("StardewTest", "--- กำลังค้นหา: " + itemName + " (ID: " + itemId + ") ---");
-
-        List<String> lovers = new ArrayList<>();
-        List<String> likers = new ArrayList<>();
-
-        boolean isUniversalLove = universalLoves.contains(itemId);
-        boolean isUniversalLike = universalLikes.contains(itemId);
-
-        for (NPCTaste npc : allNPCs) {
-            //  List  Love
-            if (npc.getLoveIDs().contains(itemId)) {
-                lovers.add(npc.getNpcName());
-            }
-            //  List  Like
-            else if (npc.getLikeIDs().contains(itemId)) {
-                likers.add(npc.getNpcName());
-            } else if (isUniversalLove) {
-                lovers.add(npc.getNpcName());
-            } else if (isUniversalLike) {
-                likers.add(npc.getNpcName());
-            }
-        }
-
-        Log.d("StardewTest", "💜 Love: " + (lovers.isEmpty() ? "ไม่มี" : String.join(", ", lovers)));
-        Log.d("StardewTest", "😊 Like: " + (likers.isEmpty() ? "ไม่มี" : String.join(", ", likers)));
-        Log.d("StardewTest", "------------------------------------------");
+        txtLoveResults.setText(formatNpcList(uniqueLovers));
+        txtLikeResults.setText(formatNpcList(uniqueLikers));
     }
 
     private void loadGameData() {
@@ -509,28 +506,28 @@ public class MainActivity extends AppCompatActivity {
             allNPCs.clear();
             universalLoves.clear();
             universalLikes.clear();
-            springItemNames.clear();
-            summerItemNames.clear();
-            fallItemNames.clear();
-            winterItemNames.clear();
+            springIds.clear();
+            summerIds.clear();
+            fallIds.clear();
+            winterIds.clear();
 
-            // 1. โหลดไอเทม
+            // 1. Load Items
             loadItems("objects.json");
             if (swExpanded != null && swExpanded.isChecked()) {
                 loadItems("sve_objects.json");
             }
 
-            // 2. โหลด NPC และ Gift Tastes
+            // 2. Load NPC Gifts
             loadGifts("NPCGiftTastes.json");
             if (swExpanded != null && swExpanded.isChecked()) {
                 loadGifts("sve_NPCGiftTastes.json");
             }
 
-            Log.d("StardewTest", "โหลดไอเทมได้: " + allItems.size() + " ชิ้น");
-            Log.d("StardewTest", "โหลด NPC ได้: " + allNPCs.size() + " คน");
+            Log.d("SVGifts", "Loaded items: " + allItems.size());
+            Log.d("SVGifts", "Loaded NPCs: " + allNPCs.size());
 
         } catch (Exception e) {
-            Log.e("StardewTest", "เกิดข้อผิดพลาดในการโหลดข้อมูล: " + e.getMessage(), e);
+            Log.e("SVGifts", "Error loading data: " + e.getMessage(), e);
         }
     }
 
@@ -565,17 +562,17 @@ public class MainActivity extends AppCompatActivity {
                     String season = seasons.getString(j);
                     String cleanId = StardewItem.sanitizeId(id);
                     if (season.equalsIgnoreCase("spring")) {
-                        if (!springItemNames.contains(name)) springItemNames.add(name);
-                        if (!springItemNames.contains(cleanId)) springItemNames.add(cleanId);
+                        springIds.add(id);
+                        springIds.add(cleanId);
                     } else if (season.equalsIgnoreCase("summer")) {
-                        if (!summerItemNames.contains(name)) summerItemNames.add(name);
-                        if (!summerItemNames.contains(cleanId)) summerItemNames.add(cleanId);
+                        summerIds.add(id);
+                        summerIds.add(cleanId);
                     } else if (season.equalsIgnoreCase("fall")) {
-                        if (!fallItemNames.contains(name)) fallItemNames.add(name);
-                        if (!fallItemNames.contains(cleanId)) fallItemNames.add(cleanId);
+                        fallIds.add(id);
+                        fallIds.add(cleanId);
                     } else if (season.equalsIgnoreCase("winter")) {
-                        if (!winterItemNames.contains(name)) winterItemNames.add(name);
-                        if (!winterItemNames.contains(cleanId)) winterItemNames.add(cleanId);
+                        winterIds.add(id);
+                        winterIds.add(cleanId);
                     }
                 }
             }
@@ -629,19 +626,15 @@ public class MainActivity extends AppCompatActivity {
 
     // read assets folder
     private String loadJSONFromAsset(String fileName) {
-        String json;
-        try {
-            InputStream is = getAssets().open(fileName);
+        try (InputStream is = getAssets().open(fileName)) {
             int size = is.available();
             byte[] buffer = new byte[size];
             is.read(buffer);
-            is.close();
-            json = new String(buffer, StandardCharsets.UTF_8);
+            return new String(buffer, StandardCharsets.UTF_8);
         } catch (IOException ex) {
-            Log.e("StardewTest", "Error reading asset: " + fileName, ex);
+            Log.e("SVGifts", "Error reading asset: " + fileName, ex);
             return null;
         }
-        return json;
     }
 
 }
